@@ -63,34 +63,49 @@ void send_command_to_selected_clients(char **selected_clients_ids, int selected_
 
 void *handle_client(void *socket_desc) {
     int sock = *(int*)socket_desc;
-
     struct sockaddr_in addr;
     socklen_t addr_size = sizeof(struct sockaddr_in);
     int res = getpeername(sock, (struct sockaddr*)&addr, &addr_size);
 
-    pthread_mutex_lock(&client_mutex);
-    int client_id = next_client_id++;
-    
-    clients[client_count].id = client_id;
-    clients[client_count].socket = sock;
+    char client_ip[INET_ADDRSTRLEN];
     if (res == 0) {
-        inet_ntop(AF_INET, &(addr.sin_addr), clients[client_count].ip, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &(addr.sin_addr), client_ip, INET_ADDRSTRLEN);
     } else {
         perror("getpeername failed");
-        strcpy(clients[client_count].ip, "unknown");
+        strcpy(client_ip, "unknown");
     }
+
+    pthread_mutex_lock(&client_mutex);
+
+    // Sprawdzenie, czy klient o tym IP jest już podłączony
+    for (int i = 0; i < client_count; i++) {
+        if (strcmp(clients[i].ip, client_ip) == 0) {
+            const char* message = "The client with the given IP is already connected\n";
+            write(sock, message, strlen(message));  // Wysłanie komunikatu do klienta
+
+            printf("Attempting to connect a client with IP: %s, which is already connected\n", client_ip);
+            pthread_mutex_unlock(&client_mutex);
+            close(sock);
+            free(socket_desc);
+            return NULL; // Zakończenie wątku
+        }
+    }
+
+    int client_id = next_client_id++;
+    clients[client_count].id = client_id;
+    clients[client_count].socket = sock;
+    strcpy(clients[client_count].ip, client_ip); 
     client_count++;
 
     pthread_mutex_unlock(&client_mutex);
 
-    int read_size;
-    char client_message[BUFFER_SIZE];
-
-    char *client_ip = inet_ntoa(addr.sin_addr);
     printf("Client with IP address: %s and ID: %d has connected\n", client_ip, client_id);
 
     clear_terminal();
     print_connected_clients();
+
+    int read_size;
+    char client_message[BUFFER_SIZE];
 
     while ((read_size = recv(sock, client_message, BUFFER_SIZE, 0)) > 0) {
         write(sock, client_message, strlen(client_message));
@@ -116,6 +131,7 @@ void *handle_client(void *socket_desc) {
     } else if (read_size == -1) {
         perror("recv failed");
     }
+
     close(sock);
     free(socket_desc);
     return 0;
