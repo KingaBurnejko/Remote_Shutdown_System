@@ -109,6 +109,8 @@ class Client:
     def handle_server_message(self, message):
         message = message.strip()
         if message == "shutdown":
+            self.stop_client()
+            time.sleep(1)
             shutdown()
         elif message == "disconnect":
             self.stop_client() 
