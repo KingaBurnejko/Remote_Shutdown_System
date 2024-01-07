@@ -4,43 +4,23 @@ import sys
 import time
 import threading
 import subprocess
-# import psutil
-# import json
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
-# Zdefiniowanie klasy Details
-# class Details:
-#     def __init__(self):
-#         self.name = socket.gethostname()
-#         self.osName = os.name
-#         self.cpu = psutil.cpu_percent(4)
-#         self.ramUsed = "{:.1f}".format(psutil.virtual_memory()[3] / 1000000000)
-#         self.ramTotal = "{:.1f}".format(psutil.virtual_memory()[0] / 1000000000)
-#         self.ramPercentage = round(float(self.ramUsed) / float(self.ramTotal) * 100, 2)
-#         disk = psutil.disk_usage('/')
-#         self.diskTotal = "{:.1f}".format(disk.total / 1000000000)
-#         self.diskUsed = "{:.1f}".format(disk.used / 1000000000)
-#         self.diskFree = "{:.1f}".format(disk.free / 1000000000)
-#         self.diskPercentage = disk.percent
-
-#     def getJson(self):
-#         return json.dumps(self.__dict__)
-
-# Funkcje z utils.py
+# Funkcja do wyłączenia systemu operacyjnego
 def shutdown():
     try:
-        if os.name == 'nt':
+        if os.name == 'nt': # Windows
             subprocess.call(['shutdown', '/s', '/t', '0'])
-        elif os.name == 'posix':
-            if sys.platform == "darwin":
+        elif os.name == 'posix': # Unix
+            if sys.platform == "darwin": # macOS
                 subprocess.call(['shutdown', '-h', 'now'])
-            else:
+            else: # Linux i inne
                 subprocess.call(['shutdown', 'now'])
     except Exception as e:
         print(f"Failed to shutdown: {e}")
 
-# Zaktualizowana klasa Client
+# Klasa klienta do zarządzania połączeniem i komunikacją z serwerem
 class Client:
     def __init__(self, update_message_func):
         self.client_socket = None
@@ -48,25 +28,27 @@ class Client:
         self.details_thread_running = False
         self.update_message_func = update_message_func
 
+    # Funkcja do nawiązania połączenia z serwerem
     def connect(self, address, port):
         self.address = address
         self.port = port
         self.start_client()
 
+    # Funkcja do rozpoczęcia wątku klienta
     def start_client(self):
         self.running = True
         threading.Thread(target=self.run_client, daemon=True).start()
 
+    # Funkcja do aktualizacji statusu klienta
     def update_status(self, status):
         self.update_message_func(status)
 
+    # Funkcja do uruchomienia wątku klienta, obsługująca odbieranie i wysyłanie wiadomości
     def run_client(self):
         while self.running:
             try:
                 self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.client_socket.connect((self.address, self.port))
-                # Zakomentowane wysyłanie informacji o komputerze
-                # self.start_details_thread()
                 while self.running:
                     msg = self.client_socket.recv(1024)
                     if not msg:
@@ -81,31 +63,13 @@ class Client:
                     self.client_socket.close()
                 self.running = False
 
+    # Funkcja do zatrzymania klienta i zamknięcia połączenie z serwerem
     def stop_client(self):
         self.running = False
         if self.client_socket:
             self.client_socket.close()
 
-    # def start_details_thread(self):
-    #     def send_details():
-    #         while self.details_thread_running:
-    #             try:
-    #                 details = Details().getJson()
-    #                 self.client_socket.send(bytes(details, 'UTF-8'))
-    #                 time.sleep(2)
-    #             except Exception as e:
-    #                 self.stop()
-    #                 break
-
-    #     self.details_thread_running = True
-    #     details_thread = threading.Thread(target=send_details, daemon=True)
-    #     details_thread.start()
-
-    def stop(self):
-        self.running = False
-        self.details_thread_running = False
-        self.client_socket.close()
-
+    # Funkcja do obsługi komend od serwera
     def handle_server_message(self, message):
         message = message.strip()
         if message == "shutdown":
@@ -116,14 +80,13 @@ class Client:
             self.stop_client() 
             self.update_status("Status: Disconnected")
 
-
-# Klasa GUI dla klienta
+# Klasa GUI klienta umożliwiająca interakcję z użytkownikiem
 class ClientGUI:
     def __init__(self, client):
         self.client = client
         self.root = tk.Tk()
         self.root.title("Remote shutdown system")
-        self.root.geometry("600x400")  # Ustawienie większych wymiarów okna
+        self.root.geometry("600x400")
 
         tk.Label(self.root, text="IP address:").pack()
         self.server_address_entry = tk.Entry(self.root)
@@ -147,9 +110,11 @@ class ClientGUI:
         self.messages = scrolledtext.ScrolledText(self.root, height=10)
         self.messages.pack()
 
+    # Funkcja do aktualizacji statusu klienta w GUI
     def update_status(self, status):
         self.status_label.config(text=status)
 
+    # Funkcja do łączenia klienta z serwerem
     def connect_to_server(self):
         address = self.server_address_entry.get()
         port = int(self.server_port_entry.get())
@@ -160,18 +125,21 @@ class ClientGUI:
             messagebox.showerror("Connection failed", str(e))
             self.status_label.config(text="Status: Connection failed")
 
+    # Funkcja do rozłączania klienta z serwerem
     def disconnect_from_server(self):
         self.client.stop_client()
         self.status_label.config(text="Status: Disconnected")
 
+    # Funkcja do aktualizacji wiadomości w GUI
     def update_message(self, message):
         self.messages.insert(tk.END, message + '\n')
 
+    # Funkcja do uruchomienia GUI klienta
     def run(self):
         self.root.mainloop()
 
-# Główny punkt wejścia
 if __name__ == "__main__":
+    # Funkcja do aktualizacji statusu klienta w GUI
     def update_message_func(message):
         if message.startswith("Status:"):
             client_gui.update_status(message)
