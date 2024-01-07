@@ -41,7 +41,7 @@ python client.py
 ```
 
 ## Obsługa Programu
-- **Serwer**: Po uruchomieniu serwera, będzie on nasłuchiwał na połączenia od klientów. Możesz wysyłać komendy do wszystkich klientów lub wybranych po ID. Format takiej komendy to: `id_klienta_1,id_klienta_2 treść_komendy`, czyli numery określające id wybranych klientów (wymienione po przecinku) i komenda po spacji. W razie konieczności wysłania komendy do wszystkich klientów jako id wystarczy wpisać 0 (jest to id, które nie zostaje wykorzystane w przypisaniu identyfikatorów dla klientów; jest zarezerwowane do komunikacji ze wszystkimi klientami).
+- **Serwer**: Po uruchomieniu serwera, będzie on nasłuchiwał i oczekiwał na połączenia od klientów i wyświetlał listę podłączonych klientów w danym momencie. Aby przejść do trybu wysyłania komend, należy kliknąć enter. Wówczas terminal umożliwi wysyłanie komend do wszystkich klientów lub wybranych po ID. Format takiej komendy to: `id_klienta_1,id_klienta_2 treść_komendy`, czyli numery określające id wybranych klientów (wymienione po przecinku) i komenda po spacji. W razie konieczności wysłania komendy do wszystkich klientów jako id wystarczy wpisać 0 (jest to id, które nie zostaje wykorzystane w przypisaniu identyfikatorów dla klientów; jest zarezerwowane do komunikacji ze wszystkimi klientami).
 
 - **Klient**: Po uruchomieniu, GUI umożliwi wpisanie IP serwera oraz numeru portu. Następnie przy pomocy przycisków klient będzie w stanie połączyć się oraz rozłączyć z serwerem. Po połączeniu, komendy wysyłane przez serwer do klienta, będę widoczne na ekranie.
 
