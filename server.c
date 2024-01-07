@@ -11,6 +11,7 @@
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 100
 
+// Struktura przechowująca informacje o kliencie
 typedef struct {
     int socket;
     int id;
@@ -19,15 +20,16 @@ typedef struct {
 
 Client clients[MAX_CLIENTS];
 
-
 int client_count = 0;
 pthread_mutex_t client_mutex;
 int next_client_id = 1;
 
+// Funkcja czyszcząca terminal
 void clear_terminal() {
     system("clear");
 }
 
+// Funkcja wypisująca listę podłączonych klientów
 void print_connected_clients() {
     clear_terminal();
     pthread_mutex_lock(&client_mutex);
@@ -39,14 +41,7 @@ void print_connected_clients() {
     pthread_mutex_unlock(&client_mutex);
 }
 
-void send_command_to_all_clients(char *command) {
-    pthread_mutex_lock(&client_mutex);
-    for (int i = 0; i < client_count; i++) {
-        write(clients[i].socket, command, strlen(command));
-    }
-    pthread_mutex_unlock(&client_mutex);
-}
-
+// Funkcja wysyłająca komendę do wybranych klientów
 void send_command_to_selected_clients(char **selected_clients_ids, int selected_clients_count, char *command) {
     pthread_mutex_lock(&client_mutex);
     for (int i = 0; i < selected_clients_count; i++) {
@@ -61,6 +56,7 @@ void send_command_to_selected_clients(char **selected_clients_ids, int selected_
     pthread_mutex_unlock(&client_mutex);
 }
 
+// Funkcja obsługująca połączenie z klientem
 void *handle_client(void *socket_desc) {
     int sock = *(int*)socket_desc;
     struct sockaddr_in addr;
@@ -71,7 +67,7 @@ void *handle_client(void *socket_desc) {
     if (res == 0) {
         inet_ntop(AF_INET, &(addr.sin_addr), client_ip, INET_ADDRSTRLEN);
     } else {
-        perror("getpeername failed");
+        perror("getpeername failed"); // Błąd pobierania adresu IP klienta
         strcpy(client_ip, "unknown");
     }
 
@@ -107,10 +103,12 @@ void *handle_client(void *socket_desc) {
     int read_size;
     char client_message[BUFFER_SIZE];
 
+    // Odbieranie i przekazywanie wiadomości od klienta
     while ((read_size = recv(sock, client_message, BUFFER_SIZE, 0)) > 0) {
         write(sock, client_message, strlen(client_message));
     }
 
+    // Obsługa rozłączenia klienta
     if (read_size == 0) {
         printf("Client with IP address: %s and ID: %d has disconnected\n", client_ip, client_id);
         pthread_mutex_lock(&client_mutex);
@@ -129,7 +127,7 @@ void *handle_client(void *socket_desc) {
         clear_terminal();
         print_connected_clients();
     } else if (read_size == -1) {
-        perror("recv failed");
+        perror("recv failed"); // Błąd odbierania wiadomości
     }
 
     close(sock);
@@ -137,13 +135,14 @@ void *handle_client(void *socket_desc) {
     return 0;
 }
 
+// Funkcja obsługująca wprowadzanie komend przez administratora
 void *handle_server_input(void *arg) {
     char command[BUFFER_SIZE];
     char client_id[100];
 
     while (1) {
         printf("Press Enter to enter command mode\n");
-        getchar();  // Wait for Enter key
+        getchar(); // Oczekiwanie na wciśnięcie klawisza Enter
 
         clear_terminal();
         print_connected_clients();
@@ -152,7 +151,7 @@ void *handle_server_input(void *arg) {
 
         // Wczytaj całą linię komendy
         if (fgets(command, sizeof(command), stdin) == NULL) {
-            perror("fgets failed");
+            perror("fgets failed"); // Błąd wczytywania komendy
             exit(EXIT_FAILURE);
         }
 
@@ -164,9 +163,10 @@ void *handle_server_input(void *arg) {
 
         char *selected_clients_ids[MAX_CLIENTS];
 
+        // Sprawdzenie, czy wybrano wszystkich klientów
         if (strcmp(client_id, "0") == 0) {
             for (int i = 0; i < client_count; i++) {
-                char id_str[4];  // Załóżmy, że identyfikatory są liczby całkowite, co najwyżej 10 cyfr
+                char id_str[4];
                 sprintf(id_str, "%d", clients[i].id);
                 selected_clients_ids[i] = strdup(id_str);
             }
@@ -179,6 +179,7 @@ void *handle_server_input(void *arg) {
             }
             
         } else {
+            // Wysłanie komendy do wybranych klientów
             char *token = strtok(client_id, ",");
             int selected_clients_count = 0;
             
@@ -197,6 +198,7 @@ int main() {
     struct sockaddr_in server, client;
     int *new_sock;
 
+    // Utworzenie gniazda serwera
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd == -1) {
         printf("Unable to create socket\n");
@@ -204,24 +206,29 @@ int main() {
     }
     puts("Socket created");
 
+    // Ustawienie opcji gniazda
     int opt = 1;
     if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
-        perror("setsockopt");
+        perror("setsockopt"); // Błąd ustawiania opcji gniazda
         exit(EXIT_FAILURE);
     }
 
+    // Konfiguracja adresu i portu serwera
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons(PORT);
 
+    // Powiązanie gniazda z adresem serwera
     if (bind(server_fd, (struct sockaddr *)&server, sizeof(server)) < 0) {
-        perror("bind failed");
+        perror("bind failed"); // Błąd powiązania gniazda z adresem
         return 1;
     }
     puts("bind done");
 
+    // Nasłuchiwanie na połączenia przychodzące
     listen(server_fd, 3);
 
+    // Utworzenie wątku obsługującego wprowadzanie komend przez administratora
     pthread_t input_thread;
     memset(clients, 0, sizeof(clients));
     if (pthread_create(&input_thread, NULL, handle_server_input, NULL) < 0) {
@@ -229,29 +236,32 @@ int main() {
         return 1;
     }
 
+    // Oczekiwanie na połączenia przychodzące
     puts("Waiting for calls...");
     c = sizeof(struct sockaddr_in);
     while ((client_sock = accept(server_fd, (struct sockaddr *)&client, (socklen_t*)&c))) {
-        puts("Connection accepted");
 
+        puts("Connection accepted");
+        // Utworzenie wątku obsługującego połączenie z klientem
         pthread_t client_thread;
         new_sock = malloc(sizeof(int));
         if (new_sock == NULL) {
-            perror("malloc failed");
+            perror("malloc failed"); // Błąd alokacji pamięci
             return 1;
         }
         *new_sock = client_sock;
 
+        // Obsługa wielu klientów jednocześnie
         if (pthread_create(&client_thread, NULL, handle_client, (void*)new_sock) < 0) {
-            perror("could not create thread");
+            perror("could not create thread"); // Błąd tworzenia wątku
             return 1;
         }
 
-        puts("Handler assigned");
+        puts("Handler assigned"); // Przypisanie wątku do klienta
     }
 
     if (client_sock < 0) {
-        perror("accept failed");
+        perror("accept failed"); // Błąd akceptacji połączenia
         return 1;
     }
 
